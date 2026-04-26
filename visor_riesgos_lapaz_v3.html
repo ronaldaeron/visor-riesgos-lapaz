@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visor de Riesgos - La Paz</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #181c27;
+      --panel2: #1e2335;
+      --border: #2a2f3f;
+      --accent: #e8b84b;
+      --accent2: #f0cc7a;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+      flex-shrink: 0;
+      height: 56px;
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .logo {
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #0f1117;
+    }
+    .header-title h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px; color: var(--text);
+    }
+    .header-title p {
+      font-size: 10px; color: var(--muted); font-weight: 300;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-badge {
+      background: rgba(232,184,75,0.12);
+      border: 1px solid rgba(232,184,75,0.28);
+      color: var(--accent); font-size: 11px;
+      padding: 3px 10px; border-radius: 20px; font-weight: 500;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444; flex-shrink: 0; transition: background 0.3s;
+    }
+    .status-dot.online { background: #22c55e; }
+    .status-label { font-size: 11px; color: var(--muted); }
+    .cfg-btn {
+      background: var(--panel2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px;
+      padding: 4px 12px; border-radius: 6px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+    .cfg-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+      width: 480px; max-width: 95vw;
+    }
+    .modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; margin-bottom: 6px; color: var(--text);
+    }
+    .modal p { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .modal label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .modal input {
+      width: 100%; background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px;
+      color: var(--text); font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      margin-bottom: 16px; transition: border-color 0.2s;
+    }
+    .modal input:focus { outline: none; border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-primary {
+      background: var(--accent); color: #0f1117;
+      border: none; border-radius: 8px;
+      padding: 9px 20px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-secondary {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 20px; font-size: 13px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .url-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .preset-btn {
+      background: var(--panel2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px;
+      padding: 4px 10px; border-radius: 6px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* MAIN */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 240px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; flex-shrink: 0;
+    }
+    .sidebar-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-section h3 {
+      font-size: 9px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 10px;
+    }
+
+    /* LAYERS */
+    .layer-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0; cursor: pointer; transition: opacity 0.2s;
+    }
+    .layer-item:hover { opacity: 0.75; }
+    .layer-toggle {
+      width: 34px; height: 18px; background: var(--border);
+      border-radius: 9px; position: relative;
+      cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    }
+    .layer-toggle.active { background: var(--accent); }
+    .layer-toggle::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; background: white;
+      border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s;
+    }
+    .layer-toggle.active::after { transform: translateX(16px); }
+    .layer-icon { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+    .layer-name { font-size: 12px; color: var(--text); flex: 1; }
+
+    /* OPACITY */
+    .opacity-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 2px 0 6px 44px;
+    }
+    .opacity-row input[type=range] {
+      flex: 1; height: 3px; cursor: pointer; accent-color: var(--accent);
+    }
+    .opacity-val { font-size: 10px; color: var(--muted); width: 28px; text-align: right; }
+
+    /* LEGEND */
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .legend-color { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+    .legend-label { font-size: 11px; color: var(--text); }
+
+    /* BASEMAP */
+    .basemap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .basemap-btn {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px;
+      padding: 6px; border-radius: 6px; cursor: pointer;
+      text-align: center; transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .basemap-btn:hover, .basemap-btn.active {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(232,184,75,0.07);
+    }
+
+    /* MAP */
+    .map-container { position: relative; flex: 1; display: flex; flex-direction: column; }
+    #map { flex: 1; z-index: 1; width: 100%; height: 100%; }
+
+    /* INFO BOX */
+    .info-box {
+      position: absolute; bottom: 20px; right: 20px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+      z-index: 1000; min-width: 200px; max-width: 290px; display: none;
+    }
+    .info-box.visible { display: block; }
+    .info-box-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 10px;
+    }
+    .info-box h4 {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--muted);
+    }
+    .info-close { cursor: pointer; color: var(--muted); font-size: 14px; }
+    .info-close:hover { color: var(--text); }
+    .info-row {
+      display: flex; justify-content: space-between;
+      font-size: 11px; padding: 3px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key { color: var(--muted); }
+    .info-val { color: var(--text); font-weight: 500; max-width: 150px; text-align: right; }
+
+    /* COORDS */
+    .coords-bar {
+      position: absolute; bottom: 8px; left: 8px;
+      background: rgba(15,17,23,0.85);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px;
+      font-size: 10px; color: var(--muted);
+      z-index: 500; font-family: monospace;
+    }
+
+    /* LEAFLET */
+    .leaflet-control-zoom {
+      border: 1px solid var(--border) !important;
+      border-radius: 8px !important; overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-bottom: 1px solid var(--border) !important;
+    }
+    .leaflet-control-zoom a:hover { background: var(--bg) !important; }
+    .leaflet-control-attribution {
+      background: rgba(15,17,23,0.8) !important;
+      color: var(--muted) !important; font-size: 10px !important;
+    }
+
+    /* SCROLLBAR */
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Configurar GeoServer</h2>
+    <p>Ingresa la URL base de tu GeoServer y el nombre del workspace.</p>
+    <label>URL Base de GeoServer</label>
+    <div class="url-presets">
+      <button class="preset-btn" onclick="document.getElementById('gsUrlInput').value='http://localhost:8080/geoserver'">localhost:8080</button>
+      <button class="preset-btn" onclick="document.getElementById('gsUrlInput').value='http://localhost:8090/geoserver'">localhost:8090</button>
+      <button class="preset-btn" onclick="document.getElementById('gsUrlInput').focus()">ngrok (pegar URL)</button>
+    </div>
+    <input type="text" id="gsUrlInput" placeholder="http://localhost:8080/geoserver" value="http://localhost:8080/geoserver"/>
+    <label>Workspace</label>
+    <input type="text" id="wsInput" placeholder="riesgos_lapaz" value="riesgos_lapaz"/>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="applyConfig()">Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="logo">LP</div>
+    <div class="header-title">
+      <h1>Visor de Riesgos - La Paz</h1>
+      <p>Gobierno Autonomo Municipal de La Paz</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">Desconectado</span>
+    <span class="header-badge">WMS - GeoServer</span>
+    <button class="cfg-btn" onclick="openModal()">Configurar</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="sidebar">
+
+    <!-- CAPAS -->
+    <div class="sidebar-section">
+      <h3>Capas</h3>
+
+      <div class="layer-item" onclick="toggleLayer('riesgos')">
+        <div class="layer-toggle active" id="toggle-riesgos"></div>
+        <div class="layer-icon" style="background:#d73027;"></div>
+        <span class="layer-name">Riesgos</span>
+      </div>
+      <div class="opacity-row">
+        <input type="range" min="0" max="100" value="80"
+          oninput="setOpacity('riesgos',this.value);document.getElementById('op-riesgos').textContent=this.value+'%'"/>
+        <span class="opacity-val" id="op-riesgos">80%</span>
+      </div>
+
+      <div class="layer-item" onclick="toggleLayer('distritos')">
+        <div class="layer-toggle active" id="toggle-distritos"></div>
+        <div class="layer-icon" style="background:transparent;border:2px solid #8892a4;"></div>
+        <span class="layer-name">Distritos</span>
+      </div>
+      <div class="opacity-row">
+        <input type="range" min="0" max="100" value="90"
+          oninput="setOpacity('distritos',this.value);document.getElementById('op-distritos').textContent=this.value+'%'"/>
+        <span class="opacity-val" id="op-distritos">90%</span>
+      </div>
+
+      <div class="layer-item" onclick="toggleLayer('vias')">
+        <div class="layer-toggle active" id="toggle-vias"></div>
+        <div class="layer-icon" style="background:#e05c1a;border-radius:50%;"></div>
+        <span class="layer-name">Vias</span>
+      </div>
+      <div class="opacity-row">
+        <input type="range" min="0" max="100" value="90"
+          oninput="setOpacity('vias',this.value);document.getElementById('op-vias').textContent=this.value+'%'"/>
+        <span class="opacity-val" id="op-vias">90%</span>
+      </div>
+
+      <div class="layer-item" onclick="toggleLayer('hidrografia')">
+        <div class="layer-toggle active" id="toggle-hidrografia"></div>
+        <div class="layer-icon" style="background:#4a90d9;border-radius:50%;"></div>
+        <span class="layer-name">Hidrografia</span>
+      </div>
+      <div class="opacity-row">
+        <input type="range" min="0" max="100" value="90"
+          oninput="setOpacity('hidrografia',this.value);document.getElementById('op-hidrografia').textContent=this.value+'%'"/>
+        <span class="opacity-val" id="op-hidrografia">90%</span>
+      </div>
+
+      <div class="layer-item" onclick="toggleLayer('manzanas')">
+        <div class="layer-toggle active" id="toggle-manzanas"></div>
+        <div class="layer-icon" style="background:#f5e6c8;border:1px solid #b5916a;"></div>
+        <span class="layer-name">Manzanas</span>
+      </div>
+      <div class="opacity-row">
+        <input type="range" min="0" max="100" value="60"
+          oninput="setOpacity('manzanas',this.value);document.getElementById('op-manzanas').textContent=this.value+'%'"/>
+        <span class="opacity-val" id="op-manzanas">60%</span>
+      </div>
+    </div>
+
+    <!-- LEYENDA -->
+    <div class="sidebar-section">
+      <h3>Leyenda - Riesgos</h3>
+      <div class="legend-item">
+        <div class="legend-color" style="background:#d73027;"></div>
+        <span class="legend-label">Muy Alto</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:#fc8d59;"></div>
+        <span class="legend-label">Alto</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:#fee090;"></div>
+        <span class="legend-label">Moderado</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:#1a9850;"></div>
+        <span class="legend-label">Bajo</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:#91cf60;"></div>
+        <span class="legend-label">Muy Bajo</span>
+      </div>
+    </div>
+
+    <!-- MAPA BASE -->
+    <div class="sidebar-section">
+      <h3>Mapa Base</h3>
+      <div class="basemap-grid">
+        <button class="basemap-btn" onclick="setBasemap('osm',this)">OSM</button>
+        <button class="basemap-btn active" onclick="setBasemap('satelite',this)">Satelite</button>
+        <button class="basemap-btn" onclick="setBasemap('topo',this)">Topo</button>
+        <button class="basemap-btn" onclick="setBasemap('oscuro',this)">Oscuro</button>
+      </div>
+    </div>
+
+    <!-- INFO -->
+    <div class="sidebar-section">
+      <h3>Informacion</h3>
+      <p style="font-size:11px;color:var(--muted);line-height:1.6;">
+        Haz clic en cualquier zona del mapa para ver los atributos de la capa de riesgos.
+      </p>
+      <div id="connInfo" style="margin-top:8px;font-size:10px;color:var(--muted);word-break:break-all;line-height:1.5;"></div>
+    </div>
+
+  </div>
+
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="coords-bar" id="coordsBar">— , —</div>
+    <div class="info-box" id="infoBox">
+      <div class="info-box-header">
+        <h4>Atributos - Riesgos</h4>
+        <span class="info-close" onclick="document.getElementById('infoBox').classList.remove('visible')">X</span>
+      </div>
+      <div id="infoContent"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var GEOSERVER = localStorage.getItem('gs_url') || 'http://localhost:8080/geoserver';
+  var WS = localStorage.getItem('gs_ws') || 'riesgos_lapaz';
+
+  function openModal() {
+    document.getElementById('gsUrlInput').value = GEOSERVER;
+    document.getElementById('wsInput').value = WS;
+    document.getElementById('modalOverlay').classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.add('hidden');
+  }
+  function applyConfig() {
+    var newUrl = document.getElementById('gsUrlInput').value.trim().replace(/\/$/, '');
+    var newWs = document.getElementById('wsInput').value.trim();
+    if (!newUrl) { alert('Ingresa una URL valida'); return; }
+    GEOSERVER = newUrl;
+    WS = newWs;
+    localStorage.setItem('gs_url', GEOSERVER);
+    localStorage.setItem('gs_ws', WS);
+    closeModal();
+    rebuildLayers();
+    updateConnInfo();
+    checkConnection();
+  }
+
+  // MAPA
+  var map = L.map('map', {
+    center: [-16.5, -68.15],
+    zoom: 12,
+    zoomControl: true
+  });
+
+  map.on('mousemove', function(e) {
+    document.getElementById('coordsBar').textContent =
+      'Lat: ' + e.latlng.lat.toFixed(5) + '  Lon: ' + e.latlng.lng.toFixed(5);
+  });
+
+  var basemaps = {
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OpenStreetMap', maxZoom: 19 }),
+    satelite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 }),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: 'OpenTopoMap', maxZoom: 17 }),
+    oscuro: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB', maxZoom: 19 })
+  };
+
+  var currentBasemap = basemaps.satelite.addTo(map);
+
+  var wmsBase = { format: 'image/png', transparent: true, version: '1.1.0' };
+  var layers = {};
+  var layerStates  = { riesgos: true, distritos: true, vias: true, hidrografia: true, manzanas: true };
+  var layerOpacity = { riesgos: 0.8,  distritos: 0.9,  vias: 0.9,  hidrografia: 0.9,  manzanas: 0.6 };
+  var layerZIndex  = { manzanas: 1, hidrografia: 2, vias: 3, riesgos: 4, distritos: 5 };
+  var layerNames   = {
+    manzanas: 'manzanas_gamlp', hidrografia: 'hidrografia_gamlp',
+    vias: 'vias_gamlp', riesgos: 'riesgos_gamlp', distritos: 'distritos_gamlp'
+  };
+
+  function rebuildLayers() {
+    Object.values(layers).forEach(function(l) { try { map.removeLayer(l); } catch(e){} });
+    layers = {};
+    var url = GEOSERVER + '/wms';
+    Object.keys(layerNames).forEach(function(key) {
+      layers[key] = L.tileLayer.wms(url, Object.assign({}, wmsBase, {
+        layers: WS + ':' + layerNames[key],
+        zIndex: layerZIndex[key],
+        opacity: layerOpacity[key]
+      }));
+      if (layerStates[key]) layers[key].addTo(map);
+    });
+  }
+
+  function toggleLayer(name) {
+    var toggle = document.getElementById('toggle-' + name);
+    layerStates[name] = !layerStates[name];
+    toggle.classList.toggle('active', layerStates[name]);
+    if (layerStates[name]) { layers[name].addTo(map); }
+    else { map.removeLayer(layers[name]); }
+  }
+
+  function setOpacity(name, val) {
+    layerOpacity[name] = val / 100;
+    if (layers[name]) layers[name].setOpacity(val / 100);
+  }
+
+  function setBasemap(name, btn) {
+    document.querySelectorAll('.basemap-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    map.removeLayer(currentBasemap);
+    currentBasemap = basemaps[name].addTo(map);
+    currentBasemap.bringToBack();
+  }
+
+  // GetFeatureInfo
+  map.on('click', function(e) {
+    var size = map.getSize();
+    var bounds = map.getBounds();
+    var sw = bounds.getSouthWest();
+    var ne = bounds.getNorthEast();
+    var bbox = sw.lng + ',' + sw.lat + ',' + ne.lng + ',' + ne.lat;
+    var point = map.latLngToContainerPoint(e.latlng);
+
+    var url = GEOSERVER + '/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo'
+      + '&LAYERS=' + WS + ':riesgos_gamlp&QUERY_LAYERS=' + WS + ':riesgos_gamlp'
+      + '&BBOX=' + bbox + '&WIDTH=' + size.x + '&HEIGHT=' + size.y
+      + '&X=' + Math.round(point.x) + '&Y=' + Math.round(point.y)
+      + '&INFO_FORMAT=application/json&FEATURE_COUNT=1&SRS=EPSG:4326';
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var infoBox = document.getElementById('infoBox');
+        var infoContent = document.getElementById('infoContent');
+        if (data.features && data.features.length > 0) {
+          var props = data.features[0].properties;
+          var skip = ['gml_id','FID_1','FID','shape_leng','shape_area'];
+          var html = Object.entries(props)
+            .filter(function(e) { return !skip.includes(e[0]); })
+            .map(function(e) {
+              return '<div class="info-row"><span class="info-key">' + e[0] + '</span><span class="info-val">' + (e[1] || '-') + '</span></div>';
+            }).join('');
+          infoContent.innerHTML = html || '<p style="font-size:11px;color:var(--muted);">Sin atributos</p>';
+        } else {
+          infoContent.innerHTML = '<p style="font-size:11px;color:var(--muted);">Sin datos en este punto</p>';
+        }
+        infoBox.classList.add('visible');
+      })
+      .catch(function() {
+        document.getElementById('infoContent').innerHTML = '<p style="font-size:11px;color:#fc8d59;">Error al consultar WMS</p>';
+        document.getElementById('infoBox').classList.add('visible');
+      });
+  });
+
+  function checkConnection() {
+    var dot = document.getElementById('statusDot');
+    var label = document.getElementById('statusLabel');
+    fetch(GEOSERVER + '/ows?service=WMS&version=1.1.0&request=GetCapabilities')
+      .then(function(r) {
+        if (r.ok) { dot.classList.add('online'); label.textContent = 'Conectado'; }
+        else { throw new Error(); }
+      })
+      .catch(function() { dot.classList.remove('online'); label.textContent = 'Sin conexion'; });
+  }
+
+  function updateConnInfo() {
+    document.getElementById('connInfo').textContent = GEOSERVER + ' / ' + WS;
+  }
+
+  // INIT
+  document.getElementById('modalOverlay').classList.add('hidden');
+  updateConnInfo();
+  rebuildLayers();
+  checkConnection();
+  setInterval(checkConnection, 30000);
+</script>
+</body>
+</html>
