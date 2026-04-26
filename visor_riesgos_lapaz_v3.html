@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -418,7 +418,7 @@
 
   <div class="map-container">
     <div id="map"></div>
-    <div class="coords-bar" id="coordsBar">â€” , â€”</div>
+    <div class="coords-bar" id="coordsBar">— , —</div>
     <div class="info-box" id="infoBox">
       <div class="info-box-header">
         <h4>Atributos - Riesgos</h4>
@@ -490,7 +490,7 @@
   function rebuildLayers() {
     Object.values(layers).forEach(function(l) { try { map.removeLayer(l); } catch(e){} });
     layers = {};
-    var url = GEOSERVER + '/wms?ngrok-skip-browser-warning=true';
+    var url = GEOSERVER + '/wms';
     Object.keys(layerNames).forEach(function(key) {
       layers[key] = L.tileLayer.wms(url, Object.assign({}, wmsBase, {
         layers: WS + ':' + layerNames[key],
@@ -586,5 +586,3 @@
 </script>
 </body>
 </html>
-
-
