@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -418,7 +418,7 @@
 
   <div class="map-container">
     <div id="map"></div>
-    <div class="coords-bar" id="coordsBar">— , —</div>
+    <div class="coords-bar" id="coordsBar">â€” , â€”</div>
     <div class="info-box" id="infoBox">
       <div class="info-box-header">
         <h4>Atributos - Riesgos</h4>
@@ -431,8 +431,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  var GEOSERVER = localStorage.getItem('gs_url') || 'http://localhost:8080/geoserver';
-  var WS = localStorage.getItem('gs_ws') || 'riesgos_lapaz';
+  var GEOSERVER = 'https://petroleum-riverside-enforcer.ngrok-free.dev/geoserver';
+  var WS = 'riesgos_lapaz';
 
   function openModal() {
     document.getElementById('gsUrlInput').value = GEOSERVER;
@@ -586,3 +586,4 @@
 </script>
 </body>
 </html>
+
