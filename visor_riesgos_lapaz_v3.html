@@ -490,7 +490,7 @@
   function rebuildLayers() {
     Object.values(layers).forEach(function(l) { try { map.removeLayer(l); } catch(e){} });
     layers = {};
-    var url = GEOSERVER + '/wms';
+    var url = GEOSERVER + '/wms?ngrok-skip-browser-warning=true';
     Object.keys(layerNames).forEach(function(key) {
       layers[key] = L.tileLayer.wms(url, Object.assign({}, wmsBase, {
         layers: WS + ':' + layerNames[key],
@@ -586,4 +586,5 @@
 </script>
 </body>
 </html>
+
 
